@@ -1,11 +1,15 @@
 {
-  "name": "bittorrent-learning",
+  "name": "allen-torrent",
   "version": "1.0.0",
-  "description": "",
+  "description": "A bittorrent client for education purposes!",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC"
+  "author": "Allen Kim",
+  "license": "ISC",
+  "dependencies": {
+    "bencode": "^0.9.0",
+    "bignum": "^0.13.1"
+  }
 }
