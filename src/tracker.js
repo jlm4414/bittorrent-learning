@@ -5,36 +5,36 @@ const Buffer = require('buffer').Buffer;
 const urlParse = require('url').parse;
 const crypto = require('crypto');
 const util = require('./util');
+const events = require('events');
 const torrentParser = require('./torrent-parser.js')
 
-module.exports.getPeers = (torrent, callback) => {
-    const socket = dgram.createSocket('udp4');
-    const url = torrent["announce-list"][1].toString('utf8');
+module.exports.getPeers = (torrent) => {
+    return new Promise(function (resolve, reject){
+        const socket = dgram.createSocket('udp4');
+        const url = torrent["announce-list"][1].toString('utf8');
 
-    let connect = {flag:false}
+        let connect = {flag:false}
 
-    //udpSend(socket,buildConnReq(),url);
-    sendConn(socket,url,0,connect);
+        sendConn(socket,url,0,connect,()=>{socket.close();reject();});
 
-    socket.on('message', response => {
+        socket.on('message', response => {
 
-        if (respType(response) === 'connect'){
-            connect.flag = true;
-            const connResp = parseConnResp(response);
+            if (respType(response) === 'connect'){
+                connect.flag = true;
+                const connResp = parseConnResp(response);
 
-            const announceReq = buildAnnounceReq(connResp.connectionId, torrent);
-            udpSend(socket, announceReq, url);
-        }
+                const announceReq = buildAnnounceReq(connResp.connectionId, torrent);
+                udpSend(socket, announceReq, url);
+            }
 
-        else if (respType(response) === 'announce'){
+            else if (respType(response) === 'announce'){
 
-            const announceResp = parseAnnounceResp(response);
+                const announceResp = parseAnnounceResp(response);
 
-            callback(announceResp.peers); //?????????????????????
-        }
+                resolve(announceResp.peers);
+            }
+        });
     });
-
-
 };
 
 function respType(resp){
@@ -48,7 +48,7 @@ function udpSend(socket, message, rawUrl, callback = ()=>{}) {
     socket.send(message, 0, message.length, url.port, url.hostname, callback);    
 }
 
-function sendConn(socket,url,n,connected)
+function sendConn(socket,url,n,connected,callback)
 {
     if(connected.flag === true)
     {
@@ -57,7 +57,11 @@ function sendConn(socket,url,n,connected)
     udpSend(socket,buildConnReq(),url);
     if(n<7)
     {
-        setTimeout(function (){sendConn(socket,url,n+1,connected)},Math.pow(2,n)*15*1000);
+        setTimeout(function (){sendConn(socket,url,n+1,connected,callback);},Math.pow(2,n)*15*1000);
+    }
+    else
+    {
+        callback();
     }
 }
 

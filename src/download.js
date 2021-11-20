@@ -30,13 +30,13 @@ module.exports = (torrent, path) => {
         speed: "N/A"
     });
 
-    tracker.getPeers(torrent, peers => {
-        const pieces = new Pieces(torrent);  
+    tracker.getPeers(torrent).then(peers => {
+        const pieces = new Pieces(torrent);
         const fileDetails = fileHandler.initializeFiles(torrent);
         const files = fileDetails.files;
         isMultifile = fileDetails.multifile;
         peers.forEach(peer => download(peer, torrent, pieces, files));
-    });
+    }).catch(()=> {console.log('\n'+'连接tracker服务器失败,无法完成比特下载');b1.stop();});
 };
 
 function download(peer, torrent, pieces, files) {
