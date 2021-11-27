@@ -10,12 +10,13 @@ const fs = require('fs');
 const tp = require('./torrent-parser.js');
 const cliProgress = require('cli-progress');
 const fileHandler = require('./fileHandler');
+const events = require("events");
 const speed = {
     timer : 0,
     count : 0
 };
 
-let isMultifile = true;
+let isMultiFile = true;
 
 const b1 = new cliProgress.SingleBar({
     format: 'CLI Progress |' + '{bar}' + '| {percentage}% || {value}/{total} Chunks || Speed: {speed} || ETA: {eta_formatted}',
@@ -34,7 +35,7 @@ module.exports = (torrent, path) => {
         const pieces = new Pieces(torrent);
         const fileDetails = fileHandler.initializeFiles(torrent);
         const files = fileDetails.files;
-        isMultifile = fileDetails.multifile;
+        isMultiFile = fileDetails.multiFile;
         peers.forEach(peer => download(peer, torrent, pieces, files));
     }).catch(()=> {console.log('\n'+'连接tracker服务器失败,无法完成比特下载');b1.stop();});
 };
@@ -94,21 +95,18 @@ function chokeHandler(socket) {
 }
 
 function haveHandler (socket, payload, pieces, queue) {
-    {
-        const pieceIndex = payload.readUInt32BE(0);
-        const queueEmpty = (queue.length === 0);
+    const pieceIndex = payload.readUInt32BE(0);
+    const queueEmpty = (queue.length === 0);
         
-        queue.queue(pieceIndex);
-        if(queueEmpty) requestPiece(socket,pieces,queue);
-    
-    };
+    queue.queue(pieceIndex);
+    if(queueEmpty) requestPiece(socket,pieces,queue);
 }
 
 function bitfieldHandler (socket, payload, pieces, queue){
     const queueEmpty = (queue.length === 0);
     payload.forEach((byte, i) => {
         for(let j = 0; j < 8; j++){
-            if(byte % 2) queue.queue(8*i + 7 - j); 
+            if(byte % 2) queue.queue(8*i + 7 - j);
             byte = Math.floor(byte / 2);
         }        
     });
@@ -144,15 +142,15 @@ function pieceHandler(socket, payload, pieces, queue, torrent, files){
     let offset = payload.index*torrent.info['piece length'] + payload.begin;  
     //console.log(files) 
 
-    if(isMultifile) {     
+    if(isMultiFile) {
 
-        let blockEnd = offset + payload.block.length;
+        let blockEnd = offset + payload.block.length - 1;
         let fileDetails = fileHandler.chooseFile(files, offset, blockEnd);
         let start = 0;
         fs.write(fileDetails.index, payload.block.slice(start, start + fileDetails.length), 0, fileDetails.length, fileDetails.start, () => {});
        // console.log(fileDetails);  
 
-        while(fileDetails.carryforward){
+        while(fileDetails.carryForward){
             start += fileDetails.length;
             offset += fileDetails.length;
             fileDetails = fileHandler.chooseFile(files, offset, blockEnd);        

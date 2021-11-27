@@ -13,14 +13,16 @@ module.exports.getPeers = (torrent) => {
         const socket = dgram.createSocket('udp4');
         const url = torrent["announce-list"][1].toString('utf8');
 
-        let connect = {flag:false}
+        let connectEventEmitter = new events.EventEmitter();
 
-        sendConn(socket,url,0,connect,()=>{socket.close();reject();});
+        connectEventEmitter.addListener('connect failed',function (){socket.close();reject();});
+
+        sendConn(socket,url,0,connectEventEmitter);
 
         socket.on('message', response => {
 
             if (respType(response) === 'connect'){
-                connect.flag = true;
+                connectEventEmitter.emit('connected');
                 const connResp = parseConnResp(response);
 
                 const announceReq = buildAnnounceReq(connResp.connectionId, torrent);
@@ -48,20 +50,18 @@ function udpSend(socket, message, rawUrl, callback = ()=>{}) {
     socket.send(message, 0, message.length, url.port, url.hostname, callback);    
 }
 
-function sendConn(socket,url,n,connected,callback)
+function sendConn(socket,url,n,connectEventEmitter)
 {
-    if(connected.flag === true)
-    {
-        return;
-    }
     udpSend(socket,buildConnReq(),url);
-    if(n<7)
+    if(n < 7)
     {
-        setTimeout(function (){sendConn(socket,url,n+1,connected,callback);},Math.pow(2,n)*15*1000);
+        let stopFunc = function (){clearTimeout(timeoutID)}
+        let timeoutID = setTimeout(function (){sendConn(socket,url,n+1,connectEventEmitter);connectEventEmitter.removeListener('connected',stopFunc)},Math.pow(2,n)*15*1000);
+        connectEventEmitter.addListener('connected',stopFunc)
     }
     else
     {
-        callback();
+        connectEventEmitter.emit('connect failed');
     }
 }
 

@@ -27,8 +27,8 @@ module.exports = class {
 
    needed(pieceBlock){
 
-       if(this._requested.every(block => block.every(i => i))){
-           this._requested = this._received.map(block => block.slice());
+       if(this._requested.every(block => block.every(i => i===true))){
+           this._requested = this._received.map(blocks => blocks.slice());
        }
 
        return !this._requested[pieceBlock.index][pieceBlock.begin / tp.BLOCK_LEN];
@@ -43,7 +43,6 @@ module.exports = class {
        const total = tp.totalBlocks(torrent);
        const percentage = Math.round(((this._completedBlocks * 100 / total) + Number.EPSILON) * 100) / 100
        process.stdout.write('progress: ' + percentage + '%\r');
-
    }
    */
    
