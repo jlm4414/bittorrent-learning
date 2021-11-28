@@ -17,6 +17,8 @@ const speed = {
 };
 
 let isMultiFile = true;
+let done = false;
+let doneEventEmitter;
 
 const b1 = new cliProgress.SingleBar({
     format: 'CLI Progress |' + '{bar}' + '| {percentage}% || {value}/{total} Chunks || Speed: {speed} || ETA: {eta_formatted}',
@@ -36,6 +38,8 @@ module.exports = (torrent, path) => {
         const fileDetails = fileHandler.initializeFiles(torrent);
         const files = fileDetails.files;
         isMultiFile = fileDetails.multiFile;
+        doneEventEmitter = new events.EventEmitter();
+        doneEventEmitter.setMaxListeners(peers.length);
         peers.forEach(peer => download(peer, torrent, pieces, files));
     }).catch(()=> {console.log('\n'+'连接tracker服务器失败,无法完成比特下载');b1.stop();});
 };
@@ -46,7 +50,9 @@ function download(peer, torrent, pieces, files) {
     socket.connect(peer.port, peer.ip, () => {
         socket.write(message.buildHandshake(torrent));
     });
-    
+
+    doneEventEmitter.addListener('done',function (){socket.end();});
+
     const queue = new Queue(torrent);
     onWholeMsg(socket, msg => msgHandler(msg, socket, pieces, queue, torrent, files));      
 
@@ -131,13 +137,28 @@ function requestPiece(socket, pieces, queue){
             break;
         }
     }
+    while(pieces.isEndGame()&&pieces.endGameQueue.length>0) {
+        const pieceBlock = pieces.endGameQueue[0];
+        if(pieces.received(pieceBlock)) {
+            pieces.endGameQueue.shift();
+        }
+        else{
+            socket.write(message.buildRequest(pieceBlock));
+            break;
+        }
+    }
 }
 
-function pieceHandler(socket, payload, pieces, queue, torrent, files){     
-   
+function pieceHandler(socket, payload, pieces, queue, torrent, files){
+
+    if(pieces.isEndGame()&&pieces.received(payload))
+    {
+        return;
+    }
+
     pieces.addReceived(payload); //wouldnt this be a relatively large object to pass??
 
-    b1.increment({speed : getSpeed(pieces)});   
+    b1.increment({speed : getSpeed(pieces)});
 
     let offset = payload.index*torrent.info['piece length'] + payload.begin;  
     //console.log(files) 
@@ -162,10 +183,11 @@ function pieceHandler(socket, payload, pieces, queue, torrent, files){
     else fs.write(files, payload.block, 0, payload.block.length, offset, () => {});
     
     
-    if(pieces.isDone()){
-        socket.end();
-        console.log("DONE!");
+    if(pieces.isDone()&&!done){
+        done = true;
+        doneEventEmitter.emit('done');
         b1.stop();
+        console.log("DONE!");
         fileHandler.closeFiles(files);
     }
     else{
@@ -184,13 +206,3 @@ function getSpeed(pieces){
     const dSpeed = Math.floor((1000*(newCount - lastCount)) / (newTime - lastTime));
     return dSpeed;       
 }
-
-
-
-/*
-
-function progress(completed, total) {
-    const percentage = Math.round(((completed * 100 / total) + Number.EPSILON) * 100) / 100
-    process.stdout.write('progress: ' + percentage + '%\r');
-}
-*/

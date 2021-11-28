@@ -11,7 +11,10 @@ module.exports = class {
 
         this._requested = buildPiecesArray();
         this._received = buildPiecesArray();
+        this._torrent = torrent;
         this.completedBlocks = 0;
+        this._endGame = false;
+        this.endGameQueue = [];
    }
 
    addRequested(pieceBlock){
@@ -28,22 +31,33 @@ module.exports = class {
    needed(pieceBlock){
 
        if(this._requested.every(block => block.every(i => i===true))){
+           this._endGame = true;
            this._requested = this._received.map(blocks => blocks.slice());
+           for(let i =0 ;i<this._received.length;i++) {
+               for(let j =0;j<this._received[i].length;j++) {
+                   if(!this._requested[i][j]) {
+                       const pieceBlock= {
+                           index: i,
+                           begin: j * tp.BLOCK_LEN,
+                           length: tp.blockLen(this._torrent, i, j)
+                       };
+                       this.endGameQueue.push(pieceBlock);
+                   }
+               }
+           }
        }
-
        return !this._requested[pieceBlock.index][pieceBlock.begin / tp.BLOCK_LEN];
+   }
+
+   received(pieceBlock) {
+       return this._received[pieceBlock.index][pieceBlock.begin/tp.BLOCK_LEN];
    }
 
    isDone(){
        return this._received.every(block => block.every(i => i === true));
    }
 
-   /*
-   progress(torrent){
-       const total = tp.totalBlocks(torrent);
-       const percentage = Math.round(((this._completedBlocks * 100 / total) + Number.EPSILON) * 100) / 100
-       process.stdout.write('progress: ' + percentage + '%\r');
+   isEndGame(){
+        return this._endGame;
    }
-   */
-   
 };

@@ -34,6 +34,8 @@ module.exports.getPeers = (torrent) => {
                 const announceResp = parseAnnounceResp(response);
 
                 resolve(announceResp.peers);
+
+                socket.close();
             }
         });
     });
