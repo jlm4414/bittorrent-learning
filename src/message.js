@@ -6,18 +6,13 @@ const util = require('./util.js')
 
 module.exports.buildHandshake = (torrent) => {
     const buf = Buffer.alloc(68);
-
     buf.writeUInt8(19, 0);
-
-    //Experiment with buf.write("BitTorrent protocol",1)
-    //Buffer.from("BitTorrent protocol").copy(buf, 1); 
     buf.write("BitTorrent protocol",1);
-
     buf.writeUInt32BE(0, 20);
     buf.writeUInt32BE(0, 24);
     torrentParser.infoHash(torrent).copy(buf, 28); 
     util.genId().copy(buf,48);
-    
+
     return buf;
 };
 
@@ -68,9 +63,7 @@ module.exports.buildBitfield = (bitfield) => {
     const buf = Buffer.alloc(5 + bitfield.length);
     buf.writeUInt32BE(1+bitfield.length, 0);
     buf.writeUInt8(5, 4);
-
-    //experiment with Buffer.from(bitfield).copy(buf,4) and buf.write(bitfield,5)
-    bitfield.copy(buf,5); 
+    bitfield.copy(buf,5);
 
     return buf;
 };
@@ -119,8 +112,7 @@ module.exports.buildPort = (listenPort) => {
 
 module.exports.parse = (msg) => {
     const id = msg.length > 4 ? msg.readInt8(4) : null;
-    let payload = 
-    msg.length > 5 ? msg.slice(5) : null;
+    let payload = msg.length > 5 ? msg.slice(5) : null;
 
     if(id === 6 || id === 7 || id === 8){
         const rest = payload.slice(8);

@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const tp = require('./torrent-parser.js')
 
-
+//单文件下载及多文件下载都支持
 module.exports.initializeFiles = (torrent) => {
     fs.mkdir(('./' + torrent.info.name.toString('utf8')), 
   { recursive: true }, (err) => { 
@@ -48,10 +48,10 @@ module.exports.initializeFiles = (torrent) => {
 module.exports.chooseFile = (files, offset, blockEnd) => {
   
   for(let i = 0; i < files.length; i++){
-    if(files[i].end >= offset){ //confusion b/w > and >=
+    if(files[i].end >= offset){
       const temp = (files[i].end - offset + 1);
       const left = blockEnd - offset + 1;
-      const carryForward = (temp < left ) ? true : false;
+      const carryForward = (temp < left );
       const length = (temp < left) ? temp : left;
 
       return {
